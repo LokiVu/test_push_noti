@@ -9,13 +9,23 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:push_noti_app/getfcm.dart';
 import 'package:push_noti_app/message_view.dart';
 
+AndroidNotificationChannel channel = const AndroidNotificationChannel(
+  'id channel',
+  'tên channel',
+  description: 'quèo quéo queo',
+  importance: Importance.max,
+  ledColor: Colors.red,
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-  NotificationSettings settings = await messaging.requestPermission(
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+  await messaging.requestPermission(
     alert: true,
     announcement: false,
     badge: true,
@@ -32,7 +42,18 @@ Future<void> main() async {
     sound: true,
   );
   // SETUP SOUND FOR IOS
+  if (Platform.isAndroid) {
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
 
+    await flutterLocalNotificationsPlugin.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('mipmap/ic_launcher'),
+      ),
+    );
+  }
   runApp(const MyApp());
 }
 
@@ -68,12 +89,6 @@ class _MyHomePageState extends State<MyHomePage> {
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  AndroidNotificationChannel channel = const AndroidNotificationChannel(
-    'high_importance_channel',
-    'High Importance Notifications',
-    description: 'This channel is used for important notifications.',
-    importance: Importance.high,
-  );
   Future<void> _setUpInteractedMessage() async {
     RemoteMessage? iniitialMessgae =
         await FirebaseMessaging.instance.getInitialMessage();
@@ -86,7 +101,7 @@ class _MyHomePageState extends State<MyHomePage> {
     FirebaseMessaging.onBackgroundMessage(_backgroundMessageHandler);
 
     String? fcmKey = await getFcmToken();
-    print('FCM Key : $fcmKey');
+    log('FCM Key : $fcmKey');
   }
 
   void _onMessageOpenedApp(RemoteMessage message) {
@@ -103,7 +118,6 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-
     _setUpInteractedMessage();
   }
 
@@ -151,6 +165,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
 Future<void> _backgroundMessageHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  log('Handling a background message ${message.notification?.title}');
-  log('Handling a background message ${message.data}');
+  final payload = message.data['title'];
+  if (payload != null) {
+    AlertDialog(
+      content: payload,
+    );
+  }
 }
